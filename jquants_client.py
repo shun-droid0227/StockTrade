@@ -123,6 +123,10 @@ class JQuantsClient:
         """信用取引週末残高。列: Date, Code, ShrtVol, LongVol など"""
         return self._cached(f"margin_{code}", "/markets/margin-interest", {"code": code})
 
+    def margin_alert(self, code: str) -> pd.DataFrame:
+        """日々公表信用取引残高(信用規制・注意銘柄)。列: PubDate, Code, PubReason など"""
+        return self._cached(f"alert_{code}", "/markets/margin-alert", {"code": code})
+
     def earnings_calendar(self) -> pd.DataFrame:
         """決算発表予定日。列: Date, Code, CoName, FY, FQ など"""
         return self._cached("earn_cal", "/equities/earnings-calendar", {})

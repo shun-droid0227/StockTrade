@@ -58,6 +58,15 @@ class Config:
     pead_pullback: float = 0.03      # 反応日終値から3%以上の押し
     pead_max_hold: int = 20
 
+    # ---- 仕手株・低流動性の除外 ----
+    mr_min_price: float = 300.0      # 逆張りは株価がこれ未満の低位株を除外
+    mr_scale_categories: tuple = (   # 逆張りはTOPIX規模区分がこれらの銘柄のみ
+        "TOPIX Core30", "TOPIX Large70", "TOPIX Mid400",
+    )
+    participation_cap: float = 0.05  # 建玉上限 = 20日平均出来高の5%
+    exclude_margin_alert: bool = True  # 日々公表(信用規制)銘柄をエントリー禁止
+    margin_alert_lookback: int = 10  # 直近この営業日数内に日々公表掲載があれば除外
+
     # ---- ⑤⑥ 共通フィルター ----
     margin_ratio_max: float = 5.0    # 信用倍率がこれ超なら新規買い見送り
     margin_publish_lag: int = 3      # 信用残の公表ラグ(営業日)

@@ -135,6 +135,13 @@ def run_backtest(ctx: StrategyContext, cfg: Config, eval_start: pd.Timestamp) ->
             equity_now = equity_hist.get(dates[i - 1], cash) if i > start_i else cash
             risk_amt = equity_now * cfg.risk_per_trade * sig["size_mult"]
             qty = int(risk_amt / risk_ps / cfg.unit) * cfg.unit
+            # 参加率キャップ: 自分の建玉が20日平均出来高のN%を超えないようにする
+            vol20 = float(ctx.ind[code]["vol_sma20"].iloc[i - 1]) if i > 0 else np.nan
+            if not np.isnan(vol20) and vol20 > 0:
+                cap = int(cfg.participation_cap * vol20 / cfg.unit) * cfg.unit
+                if cap < cfg.unit:
+                    continue
+                qty = min(qty, cap)
             max_notional = min(equity_now * cfg.max_position_weight, cash)
             while qty > 0 and qty * o * (1 + cfg.slippage_rate + cfg.commission_rate) > max_notional:
                 qty -= cfg.unit
@@ -249,6 +256,8 @@ def run_backtest(ctx: StrategyContext, cfg: Config, eval_start: pd.Timestamp) ->
                 continue
             if ctx.margin_blocked(sig["code"], date):
                 continue
+            if ctx.alert_blocked(sig["code"], date):
+                continue
             avoid = cfg.pead_earnings_avoid_days if sig["module"] == "pead" else cfg.earnings_avoid_days
             nb = ctx.bars_to_next_earnings(sig["code"], date)
             if nb is not None and nb <= avoid + 3:
@@ -264,7 +273,11 @@ def run_backtest(ctx: StrategyContext, cfg: Config, eval_start: pd.Timestamp) ->
         cfg=cfg,
     )
     if ctx.margin is None:
-        result.warnings.append("信用需給フィルター無効(weekly_margin_interest が未取得)")
+        result.warnings.append("信用需給フィルター無効(margin-interest が未取得)")
     if not ctx.earnings_pos:
         result.warnings.append("PEADと決算またぎ回避が無効(決算データ未取得)")
+    if cfg.exclude_margin_alert and ctx.margin_alert is None:
+        result.warnings.append("信用規制銘柄フィルター無効(margin-alert が未取得)")
+    if not ctx.scale:
+        result.warnings.append("規模区分が未取得のため、逆張りは最低価格フィルターのみで稼働")
     return result

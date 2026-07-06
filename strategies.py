@@ -23,6 +23,8 @@ class StrategyContext:
         self.cfg = cfg
         self.prices = dataset["prices"]
         self.margin = dataset["margin"]
+        self.scale = dataset.get("scale", {})
+        self.margin_alert = dataset.get("margin_alert")
 
         # マスターカレンダー = 指数の日付
         self.index_df = dataset["index"]
@@ -111,6 +113,18 @@ class StrategyContext:
             return False
         return float(s.iloc[-1]) > self.cfg.margin_ratio_max
 
+    def alert_blocked(self, code: str, date: pd.Timestamp) -> bool:
+        """直近N営業日内に日々公表(信用規制・注意)掲載があればエントリー禁止。"""
+        if not self.cfg.exclude_margin_alert or self.margin_alert is None:
+            return False
+        pubs = self.margin_alert.get(code)
+        if not pubs:
+            return False
+        p = self.date_pos[date]
+        lo = max(0, p - self.cfg.margin_alert_lookback)
+        window_start = self.dates[lo]
+        return any(window_start <= pub <= date for pub in pubs)
+
     def bars_to_next_earnings(self, code: str, date: pd.Timestamp) -> int | None:
         """次の決算反応日までの営業日数。決算データが無ければNone。"""
         pos_list = self.earnings_pos.get(code)
@@ -168,6 +182,13 @@ class StrategyContext:
         for code, d in self.ind.items():
             r = d.loc[date]
             if r[["Close", "sma25", "dev25", "rsi2", "vol_sma20"]].isna().any():
+                continue
+            # 仕手株・低位株の崩壊を拾わないための除外:
+            # 低位株を弾き、規模区分が分かる場合は大型・中型のみ許可
+            if r["Close"] < cfg.mr_min_price:
+                continue
+            cat = self.scale.get(code, "")
+            if cat and cat not in cfg.mr_scale_categories:
                 continue
             if r["dev25"] > cfg.mr_dev25_threshold:
                 continue

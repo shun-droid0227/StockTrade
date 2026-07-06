@@ -76,7 +76,9 @@ def build_universe(client: JQuantsClient, cfg: Config, end: str) -> list[str]:
             frames.append(q[["Code", "Va"]])
     allq = pd.concat(frames)
     allq = allq[allq["Code"].isin(prime)]
-    turnover = allq.groupby("Code")["Va"].mean().sort_values(ascending=False)
+    # 平均ではなく中央値を使い、仕手化などの一時的な売買代金スパイクで
+    # 低流動性銘柄がランクインするのを防ぐ
+    turnover = allq.groupby("Code")["Va"].median().sort_values(ascending=False)
     return turnover.head(cfg.universe_size).index.tolist()
 
 
@@ -157,6 +159,32 @@ def load_margin_ratio(client: JQuantsClient, codes: list[str]) -> dict[str, pd.S
     return out
 
 
+def load_scale_categories(client: JQuantsClient, codes: list[str]) -> dict[str, str]:
+    """TOPIX規模区分(Core30/Large70/Mid400/Small)を銘柄ごとに返す。"""
+    listed = client.listed_info()
+    if "ScaleCat" not in listed.columns:
+        return {}
+    m = listed.set_index("Code")["ScaleCat"].to_dict()
+    return {c: str(m.get(c, "")) for c in codes}
+
+
+def load_margin_alert(client: JQuantsClient, codes: list[str]) -> dict[str, list] | None:
+    """日々公表(信用規制・注意)銘柄の掲載日リスト。プラン外ならNone。"""
+    out = {}
+    for i, code in enumerate(codes):
+        try:
+            df = client.margin_alert(code)
+        except PlanNotAvailableError:
+            print("  日々公表データが取得できないプランのため、信用規制銘柄フィルターを無効化")
+            return None
+        if df.empty or "PubDate" not in df.columns:
+            continue
+        out[code] = sorted(pd.to_datetime(df["PubDate"]).dropna().tolist())
+        if (i + 1) % 50 == 0:
+            print(f"  日々公表取得 {i + 1}/{len(codes)}")
+    return out
+
+
 def build_dataset(cfg: Config) -> dict:
     client = JQuantsClient()
     end = resolve_end_date(client, cfg)
@@ -179,11 +207,17 @@ def build_dataset(cfg: Config) -> dict:
     print("信用残取得中...")
     margin = load_margin_ratio(client, list(prices.keys()))
 
+    print("規模区分・日々公表銘柄取得中...")
+    scale = load_scale_categories(client, list(prices.keys()))
+    alert = load_margin_alert(client, list(prices.keys())) if cfg.exclude_margin_alert else None
+
     return {
         "prices": prices,
         "index": index_df,
         "earnings": earnings,
         "margin": margin,
+        "scale": scale,
+        "margin_alert": alert,
         "eval_start": pd.Timestamp(cfg.start),
     }
 
@@ -242,5 +276,7 @@ def synthetic_dataset(cfg: Config, n_codes: int = 40, n_days: int = 500, seed: i
         "index": index_df,
         "earnings": earnings,
         "margin": None,
+        "scale": {},
+        "margin_alert": None,
         "eval_start": dates[cfg.warmup_days],
     }

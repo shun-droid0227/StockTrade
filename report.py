@@ -113,7 +113,7 @@ def make_report(result: BacktestResult, show_plot: bool = False) -> str:
         reg = result.regime.reindex(eq.index).fillna(False).astype(bool)
         axes[0].fill_between(
             eq.index, eq.min(), eq.max(), where=reg.values,
-            alpha=0.08, color="green", label="trend regime",
+            alpha=0.15, color="green", label="trend regime",
         )
         axes[0].legend(loc="upper left")
     monthly = eq.resample("ME").last().pct_change().dropna()

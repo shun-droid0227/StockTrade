@@ -81,12 +81,23 @@ class JQuantsClient:
             params["pagination_key"] = pk
         return pd.DataFrame(rows)
 
+    @staticmethod
+    def _sanitize_for_parquet(df: pd.DataFrame) -> pd.DataFrame:
+        """J-Quantsは欠損値を空文字などで返すことがあり、数値と文字列が
+        混在したobject列はparquetに書けない。object列は文字列に統一して
+        保存し、数値化は読み込み側(pd.to_numeric)で行う。"""
+        out = df.copy()
+        for col in out.columns:
+            if out[col].dtype == object:
+                out[col] = out[col].map(lambda x: None if pd.isna(x) else str(x))
+        return out
+
     def _cached(self, name: str, path: str, params: dict) -> pd.DataFrame:
         key = hashlib.md5(json.dumps([path, params], sort_keys=True).encode()).hexdigest()[:12]
         f = CACHE_DIR / f"v2_{name}_{key}.parquet"
         if f.exists():
             return pd.read_parquet(f)
-        df = self._get(path, params)
+        df = self._sanitize_for_parquet(self._get(path, params))
         if not df.empty:
             df.to_parquet(f, index=False)
         return df

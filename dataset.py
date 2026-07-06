@@ -26,13 +26,11 @@ def _adjusted_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     raw_map = {"Open": "O", "High": "H", "Low": "L", "Close": "C", "Volume": "Vo"}
     cols = {}
     for name in ["Open", "High", "Low", "Close", "Volume"]:
-        if v2_map[name] in df.columns:
-            cols[name] = df[v2_map[name]]
-        else:
-            cols[name] = df[raw_map[name]]
+        src = v2_map[name] if v2_map[name] in df.columns else raw_map[name]
+        cols[name] = pd.to_numeric(df[src], errors="coerce")
     out = pd.DataFrame(cols)
     out.index = pd.to_datetime(df["Date"])
-    out = out.astype(float).dropna(subset=["Close"])
+    out = out.dropna(subset=["Close"])
     return out[out["Volume"] > 0]
 
 
@@ -76,6 +74,7 @@ def build_universe(client: JQuantsClient, cfg: Config, end: str) -> list[str]:
             frames.append(q[["Code", "Va"]])
     allq = pd.concat(frames)
     allq = allq[allq["Code"].isin(prime)]
+    allq["Va"] = pd.to_numeric(allq["Va"], errors="coerce")
     # 平均ではなく中央値を使い、仕手化などの一時的な売買代金スパイクで
     # 低流動性銘柄がランクインするのを防ぐ
     turnover = allq.groupby("Code")["Va"].median().sort_values(ascending=False)
@@ -99,13 +98,17 @@ def load_index(client: JQuantsClient, prices: dict, start: str, end: str) -> pd.
     try:
         df = client.topix(start, end)
         if not df.empty:
+            # 注意: pd.DataFrame(Series辞書, index=...) は新indexへの「整列」に
+            # なり全行NaNになるため、構築後に index を付け替える
             out = pd.DataFrame(
                 {
-                    "Open": df["O"], "High": df["H"],
-                    "Low": df["L"], "Close": df["C"],
-                },
-                index=pd.to_datetime(df["Date"]),
-            ).astype(float)
+                    "Open": pd.to_numeric(df["O"], errors="coerce"),
+                    "High": pd.to_numeric(df["H"], errors="coerce"),
+                    "Low": pd.to_numeric(df["L"], errors="coerce"),
+                    "Close": pd.to_numeric(df["C"], errors="coerce"),
+                }
+            )
+            out.index = pd.to_datetime(df["Date"])
             print("  地合い判定: TOPIX を使用")
             return out
     except PlanNotAvailableError:
@@ -149,8 +152,8 @@ def load_margin_ratio(client: JQuantsClient, codes: list[str]) -> dict[str, pd.S
             return None
         if df.empty:
             continue
-        long_v = df["LongVol"].astype(float)
-        short_v = df["ShrtVol"].astype(float).replace(0.0, np.nan)
+        long_v = pd.to_numeric(df["LongVol"], errors="coerce")
+        short_v = pd.to_numeric(df["ShrtVol"], errors="coerce").replace(0.0, np.nan)
         ratio = (long_v / short_v).fillna(99.0)
         ratio.index = pd.to_datetime(df["Date"])
         out[code] = ratio.sort_index()

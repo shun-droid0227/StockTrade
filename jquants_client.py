@@ -134,6 +134,13 @@ class JQuantsClient:
         """信用取引週末残高。列: Date, Code, ShrtVol, LongVol など"""
         return self._cached(f"margin_{code}", "/markets/margin-interest", {"code": code})
 
+    def minute_bars(self, code: str, date: str) -> pd.DataFrame:
+        """分足(1銘柄×1日)。列: Date, Time, Code, O, H, L, C, Vo, Va"""
+        return self._cached(
+            f"min_{code}_{date}", "/equities/bars/minute",
+            {"code": code, "date": date},
+        )
+
     def margin_alert(self, code: str) -> pd.DataFrame:
         """日々公表信用取引残高(信用規制・注意銘柄)。列: PubDate, Code, PubReason など"""
         return self._cached(f"alert_{code}", "/markets/margin-alert", {"code": code})

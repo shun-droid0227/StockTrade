@@ -61,10 +61,29 @@ def cmd_run(args):
     return 0
 
 
+def cmd_intraday(args):
+    from intraday import make_intraday_report, run_intraday_backtest
+
+    cfg = Config()
+    if args.equity:
+        cfg.initial_equity = args.equity
+    if args.watchlist:
+        cfg.it_watchlist_size = args.watchlist
+    result = run_intraday_backtest(cfg, start=args.start, end=args.end)
+    print(make_intraday_report(result))
+    print("\noutput/ に intraday_trades.csv, intraday_summary.txt, intraday_equity.png を保存しました")
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(description="日本株 短期複合戦略バックテスト")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("selftest", help="合成データでエンジンを検証(API不要)")
+    pi = sub.add_parser("intraday", help="分足デイトレード(ORB)バックテスト")
+    pi.add_argument("--start", default="", help="開始日(省略時は2024-09-01)")
+    pi.add_argument("--end", default="", help="終了日(省略時は最新)")
+    pi.add_argument("--watchlist", type=int, default=0, help="1日の監視銘柄数")
+    pi.add_argument("--equity", type=float, default=0, help="初期資金(円)")
     pr = sub.add_parser("run", help="J-Quantsデータでバックテスト")
     pr.add_argument("--start", default="", help="開始日 YYYY-MM-DD")
     pr.add_argument("--end", default="", help="終了日 YYYY-MM-DD(省略時は最新)")
@@ -75,6 +94,8 @@ def main():
     args = p.parse_args()
     if args.cmd == "selftest":
         sys.exit(cmd_selftest())
+    if args.cmd == "intraday":
+        sys.exit(cmd_intraday(args))
     sys.exit(cmd_run(args))
 
 

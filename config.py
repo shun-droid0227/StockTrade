@@ -59,6 +59,26 @@ class Config:
     pead_pullback: float = 0.03      # 反応日終値から3%以上の押し
     pead_max_hold: int = 20
 
+    # ---- 分足デイトレード(DESIGN_INTRADAY.md / Phase1: ORB) ----
+    it_start: str = "2024-09-01"     # 分足の遡及限界に合わせた開始日
+    it_watchlist_size: int = 20      # 1日の監視銘柄数
+    it_min_price: float = 300.0
+    it_min_turnover: float = 1e9     # 20日平均売買代金の下限
+    it_rvol_threshold: float = 1.5   # 前日出来高/20日平均の in-play 判定
+    it_gap_threshold: float = 0.02   # ギャップ in-play 判定
+    it_or_minutes: int = 15          # 寄付きレンジの長さ(分)
+    it_or_max_width: float = 0.02    # ORレンジ幅の上限(中値比)
+    it_entry_deadline: int = 690     # エントリー期限 11:30(分単位)
+    it_vol_mult: float = 2.0         # ブレイク足出来高の条件(当日平均比)
+    it_max_risk_pct: float = 0.015   # エントリー時リスクの上限
+    it_tp_r: float = 2.0             # 半分利確のR倍数
+    it_risk_per_trade: float = 0.005 # 1トレードのリスク = 資金の0.5%
+    it_max_positions: int = 2
+    it_max_trades_per_day: int = 4
+    it_daily_stop: float = -0.02     # 日次実現損失がこれでその日は新規停止
+    it_slippage: float = 0.0005     # 片道スリッページ
+    it_commission: float = 0.0      # 手数料(主要ネット証券の0円を前提)
+
     # ---- 仕手株・低流動性の除外 ----
     mr_min_price: float = 300.0      # 逆張りは株価がこれ未満の低位株を除外
     mr_scale_categories: tuple = (   # 逆張りはTOPIX規模区分がこれらの銘柄のみ

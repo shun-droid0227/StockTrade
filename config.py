@@ -24,6 +24,7 @@ class Config:
     commission_rate: float = 0.0005  # 片道手数料
     slippage_rate: float = 0.001     # 片道スリッページ
     unit: int = 100                  # 単元株数
+    day_trade_only: bool = False     # Trueなら持ち越し禁止(当日引けで全決済)
 
     # ---- ① 地合いレジーム判定 ----
     regime_sma: int = 25

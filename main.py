@@ -46,6 +46,10 @@ def cmd_run(args):
         cfg.universe_size = args.universe
     if args.equity:
         cfg.initial_equity = args.equity
+    if args.commission is not None:
+        cfg.commission_rate = args.commission
+    if args.daytrade:
+        cfg.day_trade_only = True
 
     ds = build_dataset(cfg)
     print("シグナル事前計算中...")
@@ -66,6 +70,8 @@ def main():
     pr.add_argument("--end", default="", help="終了日 YYYY-MM-DD(省略時は最新)")
     pr.add_argument("--universe", type=int, default=0, help="ユニバース銘柄数")
     pr.add_argument("--equity", type=float, default=0, help="初期資金(円)")
+    pr.add_argument("--commission", type=float, default=None, help="片道手数料率(例: 0)")
+    pr.add_argument("--daytrade", action="store_true", help="デイトレードモード(当日引けで全決済)")
     args = p.parse_args()
     if args.cmd == "selftest":
         sys.exit(cmd_selftest())

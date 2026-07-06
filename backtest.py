@@ -184,6 +184,16 @@ def run_backtest(ctx: StrategyContext, cfg: Config, eval_start: pd.Timestamp) ->
 
         positions = [p for p in positions if p.qty > 0]
 
+        # ---- 3.5) デイトレードモード: 当日引けで全決済(持ち越し禁止) ----
+        if cfg.day_trade_only:
+            for pos in positions:
+                c = ohlc(pos.code, i)[3]
+                if np.isnan(c):
+                    pos.pending_exit = "day_close"  # 売買停止日は翌日寄付きで決済
+                    continue
+                sell(pos, pos.qty, c, date, "day_close")
+            positions = [p for p in positions if p.qty > 0]
+
         # ---- 4) 引け: 翌日寄付きでの手仕舞いを予約 ----
         for pos in positions:
             o, h, l, c = ohlc(pos.code, i)

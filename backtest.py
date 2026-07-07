@@ -252,6 +252,23 @@ def run_backtest(ctx: StrategyContext, cfg: Config, eval_start: pd.Timestamp) ->
         slots = cfg.max_positions - len(positions)
         if slots <= 0:
             continue
+
+        def module_risk_mult(module: str) -> float:
+            """直近のモジュール成績に応じてリスクを調整(悪化したら縮小→停止)。"""
+            if not cfg.adaptive_module_risk:
+                return 1.0
+            cutoff = date - pd.Timedelta(days=cfg.adaptive_lookback_days)
+            recent = [t for t in trades if t.module == module and cutoff <= t.exit_date < date]
+            if len(recent) < cfg.adaptive_min_trades:
+                return 1.0
+            gw = sum(t.pnl for t in recent if t.pnl > 0)
+            gl = -sum(t.pnl for t in recent if t.pnl <= 0)
+            pf = gw / gl if gl > 0 else 99.0
+            if pf < cfg.adaptive_low_pf:
+                return 0.0
+            if pf < cfg.adaptive_mid_pf:
+                return 0.5
+            return 1.0
         cands = (
             ctx.momentum_candidates(date)
             + ctx.meanrev_candidates(date)
@@ -272,7 +289,10 @@ def run_backtest(ctx: StrategyContext, cfg: Config, eval_start: pd.Timestamp) ->
             nb = ctx.bars_to_next_earnings(sig["code"], date)
             if nb is not None and nb <= avoid + 3:
                 continue
-            sig["size_mult"] = mult
+            m_mult = module_risk_mult(sig["module"])
+            if m_mult <= 0:
+                continue
+            sig["size_mult"] = mult * m_mult
             picked.append(sig)
         scheduled = picked
 

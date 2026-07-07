@@ -60,6 +60,17 @@ class Config:
     pead_entry_to: int = 5
     pead_pullback: float = 0.03      # 反応日終値から3%以上の押し
     pead_max_hold: int = 20
+    pead_min_rvol: float = 2.0       # 反応日出来高が20日平均のこの倍数以上(質の確認)
+
+    # ---- 適応的モジュール配分(直近成績が悪いモジュールを自動縮小) ----
+    # 検証(2026-07)の結果デフォルトはオフ: PEADは年間トレード数が少なく調整が
+    # 効かない一方、順張り・逆張りを通常のドローダウン後に縮小してしまい
+    # 総リターンを+38%→+26%に悪化させた。機能はオプションとして残す
+    adaptive_module_risk: bool = False
+    adaptive_lookback_days: int = 365  # 成績を見る期間(暦日)
+    adaptive_min_trades: int = 8       # これ未満のサンプルでは調整しない
+    adaptive_low_pf: float = 0.8       # PFがこれ未満 → そのモジュールを停止
+    adaptive_mid_pf: float = 1.2       # PFがこれ未満 → リスク半分
 
     # ---- 分足デイトレード(DESIGN_INTRADAY.md / Phase1: ORB) ----
     it_start: str = "2024-09-01"     # 分足の遡及限界に合わせた開始日

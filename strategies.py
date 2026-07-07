@@ -227,6 +227,10 @@ class StrategyContext:
                     continue
                 if (c - l) / (h - l) < cfg.pead_close_range_pct:
                     continue
+                # 反応日の出来高が平常時の数倍あること(質の低いギャップを除外)
+                v, v20 = d["Volume"].iloc[rp], d["vol_sma20"].iloc[rp]
+                if cfg.pead_min_rvol > 0 and not np.isnan(v20) and v < cfg.pead_min_rvol * v20:
+                    continue
                 gap_mid = (prev_c + o) / 2.0
                 # 反応日から2〜5日目に押し目が入ったらシグナル
                 for k in range(cfg.pead_entry_from, cfg.pead_entry_to + 1):
@@ -249,3 +253,23 @@ class StrategyContext:
 
     def pead_candidates(self, date: pd.Timestamp) -> list[dict]:
         return list(self.pead_signals.get(date, []))
+
+    # ---------- 設定違いの再実行(高価な前計算を再利用) ----------
+    _PEAD_KEYS = (
+        "pead_gap_min", "pead_close_range_pct", "pead_entry_from",
+        "pead_entry_to", "pead_pullback", "pead_min_rvol",
+    )
+
+    def with_config(self, cfg: Config) -> "StrategyContext":
+        """指標・RS・レジームを共有したまま設定だけ差し替えたctxを返す。
+
+        PEADの事前計算だけは関連パラメータが変わった場合に再計算する。
+        注意: 指標計算に関わる mom_rs_lookback やレジーム設定の変更には使えない。
+        """
+        import copy
+        new = copy.copy(self)
+        old_cfg = self.cfg
+        new.cfg = cfg
+        if any(getattr(cfg, k) != getattr(old_cfg, k) for k in self._PEAD_KEYS):
+            new.pead_signals = new._precompute_pead()
+        return new

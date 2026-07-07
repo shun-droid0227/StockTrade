@@ -57,6 +57,9 @@ def add_stock_indicators(df: pd.DataFrame, cfg) -> pd.DataFrame:
     out["sma10"] = sma(c, 10)
     out["sma20"] = sma(c, 20)
     out["sma25"] = sma(c, 25)
+    trail_col = f"sma{cfg.mom_trail_sma}"
+    if trail_col not in out.columns:
+        out[trail_col] = sma(c, cfg.mom_trail_sma)
     out["dev25"] = c / out["sma25"] - 1.0
     out["rsi2"] = rsi(c, 2)
     out["vol_sma20"] = sma(v, 20)

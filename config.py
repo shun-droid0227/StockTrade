@@ -40,8 +40,10 @@ class Config:
     mom_days_since_high: tuple = (3, 7)  # 高値からの経過日数
     mom_stop_max: float = 0.06       # 損切り幅がこれを超える場合は見送り
     mom_tp_r_multiple: float = 2.0   # リスクの2倍で半分利確
-    mom_trail_sma: int = 10          # 終値がこのMAを割れたら翌日寄り手仕舞い
-    mom_max_hold: int = 15           # 最大保有日数
+    # トレイル20日・保有25日は感度分析(2026-07)で採用。
+    # 根拠: 時間切れ手仕舞いの勝率82.6%(=利を切りすぎ)と、年別成績の一貫した改善
+    mom_trail_sma: int = 20          # 終値がこのMAを割れたら翌日寄り手仕舞い
+    mom_max_hold: int = 25           # 最大保有日数
 
     # ---- ③ 逆張りスイング(乖離率 + RSI(2)) ----
     mr_dev25_threshold: float = -0.15  # 25日線乖離率
